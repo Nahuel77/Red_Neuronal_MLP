@@ -14,12 +14,12 @@ Básicamente, podemos imaginar que dividimos la imagen en 784 celdas y se le da 
 Lo que ocurre entre esta primera capa de inicio y la capa de salida con el resultado esperado es un asunto de probabilidades.
 
 Inicié esta red con una capa de inicio de 784 y una sola capa intermedia de 64 neuronas:
-(784) -> (64) -> (10)
+    (784) -> (64) -> (10)
 Y una función sigmoide para ajustar los valores obtenidos de las entradas, sus pesos y umbrales, en valores entre 0 y 1 (sin incluir el 0 y 1), y llevarlos a la matriz que resultaba en la capa siguiente.
 Y aunque resultó, la curva de aprendizaje solo fue óptima a valores altos de learning_rate, lo que no me hizo esperar a obtener problemas de estancamiento para comprender que necesitaba una nueva capa neuronal.
 
 Así fue que agregué, reajusté la primera capa intermedia a 128 y agregué una nueva capa de 64:
-(784) -> (128) -> (64) -> (10)
+    (784) -> (128) -> (64) -> (10)
 Lo que me dio problemas con la función sigmoide. Básicamente, el gradiente aplicado a los valores de la capa de salida era mínimo, lo que estancaba la curva de aprendizaje.
 
 <br/>
@@ -39,30 +39,44 @@ ChatGPT me sugirió cambiar a ReLU. Y aunque sabía que la función sigmoide est
 
 Llegado a este punto, conviene aclarar que los resultados de la red no son una matriz con el valor 1 en el resultado esperado y 0 en el resto.
 El resultado es un array de 10 elementos, con un valor entre 0 y 1 que representa la probabilidad de que cada elemento sea el resultado correcto. Imaginemos que se le da a la red la entrada de datos correspondiente al número 3. El resultado esperado de la capa podría asimilarse a esto:
+
     output_probs = [[0.03, 0.01, 0.02, 0.85, 0.02, 0.01, 0.02, 0.02, 0.04, 0.02]]
+    
 Y al ser el valor más alto el del índice 3, 0.85, la red asumirá que el número es el 3.
 
 Entre la capa de entrada (con 784 neuronas) y la capa oculta siguiente (128 neuronas) existen 100.352 conexiones posibles.
 La relación entre estas capas puede calcularse y pensarse como un nuevo array bidimensional o matriz.
 Dicha relación se establece de la siguiente manera:
-Neurona_inicio_x * Wi + Bi, donde W es el peso que tiene dicha relación y B un sesgo de activación para la neurona resultante.
+
+    Neurona_inicio_x * Wi + Bi,
+    
+donde W es el peso que tiene dicha relación y B un sesgo de activación para la neurona resultante.
 
 En nuestro set de datos de entrenamiento, que viene en formato CSV, tenemos una primera columna "label" que nos indica qué número se representará con las siguientes columnas "pixel_x" (pixel_1, pixel_2, pixel_3...).
 De manera que donde haya un trazo de escritura, se representará con un número, y donde no, con un cero.
 Estos datos se preparan separando la columna en un nuevo arreglo y_train:
+
     y_train = train['label'].values
+    
 Y en una matriz con los valores de los píxeles, sin esta columna, x_train:
+
     x_train = train.drop(columns=['label']).values / 255.0
+    
 Como el valor máximo es de 255, se normalizan los datos dividiéndolos por 255 para obtener como número máximo un 1 y el resto flotantes mayores a 0. Es decir, x_train contiene números entre 0 y 1.
 
 Luego se inicia una matriz de tamaño 784x128 (100.352) inicializada con números al azar:
+
     W1 = np.random.randn(input_size, hidden_size) * np.sqrt(2.0 / input_size)
+    
 Esta es la matriz de pesos asociados a las conexiones. Se inicializan de manera aleatoria, pero con la etapa de entrenamiento esos valores se irán ajustando.
 También se inicializa un array de tamaño 128 (128 para esta primera capa) completado con ceros. Este es el array b1 que contiene los sesgos de activación para cada neurona:
+
     b1 = np.zeros((1, hidden_size))
+    
 De igual manera, se ajustan durante el entrenamiento.
 
 Por lo tanto, de los valores obtenidos de pixel_x * Wi + bi se forma la nueva matriz representante de la primera capa oculta:
+
     Z1=np.dot(x_train, W1)+b1
 
 Aquí, luego, procesaba esta matriz con la función sigmoide para comprimir los valores a una escala entre 0 y 1. Pero, como dije antes, eso se cambió a la función ReLU.
@@ -70,8 +84,10 @@ Aquí, luego, procesaba esta matriz con la función sigmoide para comprimir los 
 La función sigmoide, como dije antes, comprimía los valores en una escala entre 0 y 1. En cambio, la función ReLU retorna 0 cuando un valor es menor a 0, y retorna x cuando el valor x es mayor a 0.
 
 La matriz obtenida entonces, con valores superiores a 0, resulta en la capa neuronal A1:
+
     Z1=np.dot(x_train, W1)+b1
     A1=relu(Z1)
+    
 El proceso entonces se repite la cantidad de veces correspondiente a la cantidad de capas neuronales.
 
 Finalmente, obtengo la capa final, no aplicando la función ReLU, que es solo para las capas ocultas, sino la función Softmax.
@@ -91,9 +107,9 @@ Calculamos e^Z1 y e^Z2: e^1, e^2 = 2.718, 7.389.
 
 El resultado será otra matriz A3 de 2 elementos cuyos valores son:
 
-A3 = [A1, A2]
-A1 = 2.718/(2.718 + 7.389) = 0.2689, A2 = 7.389/(2.718 + 7.389) = 0.7311
-A3 = [0.2689, 0.7311]
+    A3 = [A1, A2]
+    A1 = 2.718/(2.718 + 7.389) = 0.2689, A2 = 7.389/(2.718 + 7.389) = 0.7311
+    A3 = [0.2689, 0.7311]
 
 Calculando la pérdida
 
@@ -102,12 +118,16 @@ Una vez que tenemos el array de probabilidades de acierto (A3), queremos saber, 
 En realidad, si acierta también realiza ajustes, o si no acierta, realiza ajustes en todos los pesos, no solo los asociados a los valores esperados. Pero estos son tan insignificantes que realmente podemos desestimarlos en la explicación.
 
 Supongamos que en A3 tiene estos valores:
-[[0.03, 0.01, 0.02, 0.85, 0.02, 0.01, 0.02, 0.02, 0.04, 0.02]]
+
+    [[0.03, 0.01, 0.02, 0.85, 0.02, 0.01, 0.02, 0.02, 0.04, 0.02]]
+    
 Y que el label correspondiente a los datos de entrada que produjo A3 fue [0, 0, 1, 0, 0, 0, 0, 0, 0, 0].
 En A3 se interpreta entonces que el resultado correcto es 3, pero en realidad sabemos por el label que es 2.
 
 Teniendo la matriz de probabilidades A3, se procede a multiplicarla por la matriz de los labels y_train_encoded:
-A3*y_train_encoded = [0x0.03, 0x0.01, 1x0.02, 0x0.85, 0x0.02, 0x0.01, 0x0.02, 0x0.02, 0x0.04, 0x0.02] = [0, 0, 0.02, 0, 0, 0, 0, 0, 0, 0]
+
+    A3*y_train_encoded = [0x0.03, 0x0.01, 1x0.02, 0x0.85, 0x0.02, 0x0.01, 0x0.02, 0x0.02, 0x0.04, 0x0.02] = [0, 0, 0.02, 0, 0, 0, 0, 0, 0, 0]
+    
 En realidad, se multiplica por el logaritmo de la predicción correcta. Pero no voy a calcular el logaritmo de cada predicción para el ejemplo. Sin embargo, en la función se observa el método:
 
     def cross_entropy(y_true, y_pred):
